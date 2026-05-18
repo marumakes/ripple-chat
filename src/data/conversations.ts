@@ -162,31 +162,15 @@ async function createDirectConversation(
   currentUserId: string,
   recipientId: string,
 ): Promise<string> {
-  const { data: conversation, error: insertError } = await supabase
-    .from("conversations")
-    .insert({ type: "direct", created_by: currentUserId })
-    .select("id")
-    .single();
+  // Uses a SECURITY DEFINER RPC so both participant rows can be
+  // inserted atomically without RLS blocking the recipient insert.
+  const { data, error } = await supabase.rpc("create_direct_conversation", {
+    creator_id: currentUserId,
+    recipient_id: recipientId,
+  });
 
-  if (insertError) throw insertError;
-
-  const { error: participantsError } = await supabase
-    .from("conversation_participants")
-    .insert([
-      {
-        conversation_id: conversation.id,
-        user_id: currentUserId,
-        role: "admin",
-      },
-      {
-        conversation_id: conversation.id,
-        user_id: recipientId,
-        role: "member",
-      },
-    ]);
-
-  if (participantsError) throw participantsError;
-  return conversation.id;
+  if (error) throw error;
+  return data as string;
 }
 
 /**

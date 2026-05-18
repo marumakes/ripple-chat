@@ -4,90 +4,63 @@ import { supabase } from "@/lib/supabase";
 // Types
 // ============================================================
 
-export type ConversationSummary = {
+export type Message = {
   id: string;
-  type: "direct" | "group";
-  title: string;
-  lastMessage?: string;
-  lastMessageAt: string;
-  avatarUrl?: string;
-  unreadCount: number;
-  recipientId?: string; // used to initiate new conversations
+  conversation_id: string;
+  sender: {
+    id: string | null;
+    display_name: string;
+    avatar_url: string | null;
+  };
+  content: string;
+  created_at: string;
+  deleted_at: string | null;
+  is_deleted: boolean;
 };
 
 // ---- Internal Supabase row types ----
 
-type ParticipantRow = {
-  user_id: string;
-  unread_count: number;
-  profiles: {
-    id: string;
-    display_name: string;
-    avatar_url: string | null;
-  } | null;
+type SenderRow = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
 };
 
-type ConversationRow = {
+type MessageRow = {
   id: string;
-  type: "direct" | "group";
+  conversation_id: string;
+  content: string;
   created_at: string;
-  last_message: string | null;
-  last_message_at: string | null;
-  conversation_participants: ParticipantRow[];
+  deleted_at: string | null;
+  is_deleted: boolean;
+  sender_id: SenderRow | SenderRow[] | null;
 };
 
 // ============================================================
 // Mapping helpers
 // ============================================================
 
-type DisplayFields = {
-  title: string;
-  avatarUrl?: string;
-  recipientId?: string;
-};
-
-function getDisplayFields(
-  type: "direct" | "group",
-  others: ParticipantRow["profiles"][],
-): DisplayFields {
-  if (others.length === 0) return { title: "Deleted User" };
-
-  if (type === "direct") {
-    const user = others[0];
-    if (!user) return { title: "Deleted User" };
-    return {
-      title: user.display_name,
-      avatarUrl: user.avatar_url ?? undefined,
-      recipientId: user.id,
-    };
-  }
-
+function normaliseSender(
+  raw: SenderRow | SenderRow[] | null,
+): Message["sender"] {
+  // Supabase occasionally returns a joined row as an array — normalise either case.
+  const s = Array.isArray(raw) ? raw[0] : raw;
   return {
-    title: others.map((u) => (u ? u.display_name : "Deleted User")).join(", "),
+    id: s?.id ?? null,
+    display_name: s?.display_name ?? "Deleted User",
+    avatar_url: s?.avatar_url ?? null,
   };
 }
 
-function mapToSummary(
-  row: ConversationRow,
-  userId: string,
-): ConversationSummary {
-  const others = row.conversation_participants
-    .filter((p) => p.user_id !== userId)
-    .map((p) => p.profiles);
-
-  const { title, avatarUrl, recipientId } = getDisplayFields(row.type, others);
-
-  const me = row.conversation_participants.find((p) => p.user_id === userId);
-
+function mapMessageRow(m: MessageRow): Message {
   return {
-    id: row.id,
-    type: row.type,
-    title,
-    lastMessage: row.last_message ?? undefined,
-    lastMessageAt: row.last_message_at ?? row.created_at,
-    avatarUrl,
-    unreadCount: me?.unread_count ?? 0,
-    recipientId,
+    id: m.id,
+    conversation_id: m.conversation_id,
+    content: m.content,
+    created_at: m.created_at,
+    deleted_at: m.deleted_at,
+    is_deleted: m.is_deleted,
+    sender: normaliseSender(m.sender_id),
   };
 }
 
@@ -96,117 +69,120 @@ function mapToSummary(
 // ============================================================
 
 /**
- * Fetches all conversations the user participates in, with display
- * fields, avatars, and per-user unread counts.
+ * Loads all message rows for a conversation, oldest first, with
+ * nested sender profile fields joined from profiles.
  *
- * @param userId - The authenticated user's id.
- * @returns Summaries sorted by last_message_at descending.
+ * @param conversationId - UUID of the target conversation.
+ * @returns Messages ordered by created_at ascending.
  */
-export async function getMyConversations(
-  userId: string,
-): Promise<ConversationSummary[]> {
+export async function fetchMessages(
+  conversationId: string,
+): Promise<Message[]> {
   const { data, error } = await supabase
-    .from("conversations")
+    .from("messages")
     .select(
-      `id, type, created_at, last_message, last_message_at,
-       conversation_participants (
-         user_id, unread_count,
-         profiles ( id, display_name, avatar_url )
-       )`,
+      `id, conversation_id, content, created_at, deleted_at, is_deleted,
+       sender_id ( id, display_name, avatar_url )`,
     )
-    .order("last_message_at", { ascending: false, nullsFirst: false });
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
 
   if (error) throw error;
-  if (!data) return [];
-
-  return (data as unknown as ConversationRow[]).map((c) =>
-    mapToSummary(c, userId),
-  );
-}
-
-/**
- * Searches profiles by username or display_name for the new-conversation
- * picker. Excludes the current user from results.
- *
- * @param query - Partial username or display name to search for.
- * @param currentUserId - Excluded from results.
- * @returns Matching profile rows (max 20).
- */
-export async function searchUsers(
-  query: string,
-  currentUserId: string,
-): Promise<
-  {
-    id: string;
-    display_name: string;
-    avatar_url: string | null;
-    username: string;
-  }[]
-> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, display_name, avatar_url, username")
-    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-    .neq("id", currentUserId)
-    .limit(20);
-
-  if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((m: MessageRow) => mapMessageRow(m));
 }
 
 // ============================================================
 // Mutations
 // ============================================================
 
-async function createDirectConversation(
-  currentUserId: string,
-  recipientId: string,
-): Promise<string> {
-  const { data: conversation, error: insertError } = await supabase
-    .from("conversations")
-    .insert({ type: "direct", created_by: currentUserId })
-    .select("id")
+/**
+ * Inserts a new message into the conversation.
+ * Note: last_message and unread_count updates are handled by DB
+ * triggers — no client-side conversation update needed here.
+ *
+ * @param conversationId - Target thread id.
+ * @param senderId       - Authenticated user inserting the row.
+ * @param content        - Plain-text message body.
+ * @returns The newly created Message, re-fetched with sender fields joined.
+ */
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  content: string,
+): Promise<Message> {
+  const { data: inserted, error } = await supabase
+    .from("messages")
+    .insert({ conversation_id: conversationId, sender_id: senderId, content })
+    .select()
     .single();
 
-  if (insertError) throw insertError;
+  if (error || !inserted) throw error ?? new Error("Insert returned no data");
 
-  const { error: participantsError } = await supabase
-    .from("conversation_participants")
-    .insert([
-      {
-        conversation_id: conversation.id,
-        user_id: currentUserId,
-        role: "admin",
-      },
-      {
-        conversation_id: conversation.id,
-        user_id: recipientId,
-        role: "member",
-      },
-    ]);
+  // Re-fetch with joined sender fields so the returned type is consistent
+  // with what fetchMessages returns (and what the realtime handler expects).
+  const full = await fetchMessages(conversationId);
+  const message = full.find((m) => m.id === inserted.id);
 
-  if (participantsError) throw participantsError;
-  return conversation.id;
+  if (!message) throw new Error("Inserted message not found after fetch");
+  return message;
 }
 
 /**
- * Returns an existing direct conversation id for the two users via RPC,
- * or creates a new one if none exists.
+ * Soft-deletes a message by setting is_deleted and deleted_at.
+ * The DB trigger sync_last_message_on_delete keeps the conversation
+ * preview in sync automatically.
  *
- * @param currentUserId - The user initiating the conversation.
- * @param recipientId   - The other participant's user id.
- * @returns The conversation id.
+ * @param messageId - Primary key of the message to delete.
  */
-export async function getOrCreateConversation(
-  currentUserId: string,
-  recipientId: string,
-): Promise<string> {
-  const { data: existingId, error: rpcError } = await supabase.rpc(
-    "get_direct_conversation",
-    { user_a: currentUserId, user_b: recipientId },
-  );
+export async function deleteMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq("id", messageId);
 
-  if (rpcError) throw rpcError;
-  if (existingId) return existingId;
-  return createDirectConversation(currentUserId, recipientId);
+  if (error) throw error;
+}
+
+// ============================================================
+// Realtime
+// ============================================================
+
+/**
+ * Subscribes to INSERT and UPDATE events on the messages table for
+ * one conversation. On each event the message is re-fetched with full
+ * sender fields before being passed to the callback.
+ *
+ * @param conversationId - Thread to subscribe to.
+ * @param onChange       - Called with the event type and hydrated Message.
+ * @returns Unsubscribe function — call on component unmount.
+ */
+export function subscribeToMessages(
+  conversationId: string,
+  onChange: (event: "INSERT" | "UPDATE", message: Message) => void,
+): () => void {
+  const channel = supabase
+    .channel(`messages:${conversationId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      async (payload) => {
+        if (payload.eventType !== "INSERT" && payload.eventType !== "UPDATE")
+          return;
+
+        const full = await fetchMessages(conversationId);
+        const message = full.find((m) => m.id === payload.new.id);
+
+        if (message) {
+          onChange(payload.eventType, message);
+        }
+      },
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
 }

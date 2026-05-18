@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import {
@@ -29,27 +29,6 @@ function handleIncomingMessage(
   }
 }
 
-async function loadMessages(
-  cid: string,
-  setMessages: SetMessages,
-  setError: (e: Error | null) => void,
-  setIsLoading: (v: boolean) => void,
-  resetUnread: () => void,
-) {
-  setIsLoading(true);
-  setError(null);
-  try {
-    const msgs = await fetchMessages(cid);
-    setMessages(msgs);
-    await resetUnread();
-  } catch (err) {
-    setError(err as Error);
-    setMessages([]);
-  } finally {
-    setIsLoading(false);
-  }
-}
-
 /**
  * Loads and subscribes to messages for one conversation.
  * Exposes send and soft-delete helpers.
@@ -64,6 +43,10 @@ export function useMessages(conversationId: string | null) {
   const [error, setError] = useState<Error | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
+  // Track which conversations we've already loaded so we don't
+  // flash a loading state when switching back to a cached thread.
+  const loadedConversations = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (authLoading || !user || !conversationId) return;
 
@@ -71,15 +54,34 @@ export function useMessages(conversationId: string | null) {
     const resetUnread = () =>
       supabase.rpc("reset_unread_count", { conv_id: cid, uid: user.id });
 
-    loadMessages(cid, setMessages, setError, setIsLoading, resetUnread);
+    // Only show loading spinner for conversations we haven't loaded yet
+    const alreadyLoaded = loadedConversations.current.has(cid);
+
+    void (async () => {
+      if (!alreadyLoaded) setIsLoading(true);
+      setError(null);
+      try {
+        const msgs = await fetchMessages(cid);
+        setMessages(msgs);
+        loadedConversations.current.add(cid);
+        await resetUnread();
+      } catch (err) {
+        setError(err as Error);
+        setMessages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
 
     const unsubscribe = subscribeToMessages(cid, (event, message) =>
       handleIncomingMessage(event, message, setMessages, resetUnread),
     );
 
+    // On cleanup: unsubscribe the channel but do NOT clear messages.
+    // Clearing causes the flicker — the stale messages are fine to
+    // show briefly while the next fetch completes.
     return () => {
       void unsubscribe();
-      setMessages([]);
     };
   }, [conversationId, user, authLoading]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import {
@@ -38,15 +38,18 @@ export function useConversations() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const hasFetched = useRef(false);
 
   const loadConversations = useCallback(async (userId: string) => {
-    setIsLoading(true);
+    // Only show loading skeleton on the very first fetch.
+    // Subsequent refetches (from realtime events) update silently.
+    if (!hasFetched.current) setIsLoading(true);
     setError(null);
     try {
       setConversations(await getMyConversations(userId));
+      hasFetched.current = true;
     } catch (err) {
       setError(err as Error);
-      setConversations([]);
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +67,6 @@ export function useConversations() {
     });
     return () => {
       void supabase.removeChannel(channel);
-      setConversations([]);
     };
   }, [authLoading, user, loadConversations]);
 
