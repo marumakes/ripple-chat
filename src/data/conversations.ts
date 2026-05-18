@@ -33,6 +33,7 @@ type ConversationRow = {
   created_at: string;
   last_message: string | null;
   last_message_at: string | null;
+  group_name: string | null;
   conversation_participants: ParticipantRow[];
 };
 
@@ -49,10 +50,10 @@ type DisplayFields = {
 function getDisplayFields(
   type: "direct" | "group",
   others: ParticipantRow["profiles"][],
+  groupName?: string | null,
 ): DisplayFields {
-  if (others.length === 0) return { title: "Deleted User" };
-
   if (type === "direct") {
+    if (others.length === 0) return { title: "Deleted User" };
     const user = others[0];
     if (!user) return { title: "Deleted User" };
     return {
@@ -63,7 +64,9 @@ function getDisplayFields(
   }
 
   return {
-    title: others.map((u) => (u ? u.display_name : "Deleted User")).join(", "),
+    title:
+      groupName ||
+      others.map((u) => (u ? u.display_name : "Deleted User")).join(", "),
   };
 }
 
@@ -75,7 +78,7 @@ function mapToSummary(
     .filter((p) => p.user_id !== userId)
     .map((p) => p.profiles);
 
-  const { title, avatarUrl, recipientId } = getDisplayFields(row.type, others);
+  const { title, avatarUrl, recipientId } = getDisplayFields(row.type, others, row.group_name);
 
   const me = row.conversation_participants.find((p) => p.user_id === userId);
 
@@ -108,7 +111,7 @@ export async function getMyConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      `id, type, created_at, last_message, last_message_at,
+      `id, type, created_at, last_message, last_message_at, group_name,
        conversation_participants (
          user_id, unread_count,
          profiles ( id, display_name, avatar_url )
@@ -193,4 +196,18 @@ export async function getOrCreateConversation(
   if (rpcError) throw rpcError;
   if (existingId) return existingId;
   return createDirectConversation(currentUserId, recipientId);
+}
+
+export async function createGroupConversation(
+  creatorId: string,
+  participantIds: string[],
+  groupName?: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("create_group_conversation", {
+    creator_id: creatorId,
+    participant_ids: participantIds,
+    p_group_name: groupName ?? null,
+  });
+  if (error) throw error;
+  return data as string;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Loader2, X, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -7,8 +7,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { searchUsers, getOrCreateConversation } from "@/data/conversations";
+import {
+  searchUsers,
+  getOrCreateConversation,
+  createGroupConversation,
+} from "@/data/conversations";
 import { useAuth } from "@/hooks/useAuth";
 
 interface NewConversationModalProps {
@@ -24,6 +29,15 @@ type UserResult = {
   username: string;
 };
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export function NewConversationModal({
   open,
   onClose,
@@ -33,23 +47,31 @@ export function NewConversationModal({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [starting, setStarting] = useState<string | null>(null);
+  const [selected, setSelected] = useState<UserResult[]>([]);
+  const [groupName, setGroupName] = useState("");
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset state when modal opens
+  const isGroup = selected.length >= 2;
+
   useEffect(() => {
     if (open) {
       setQuery("");
       setResults([]);
+      setSelected([]);
+      setGroupName("");
       setError(null);
+      setStarting(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
-  // Debounced search
   useEffect(() => {
-    if (!query.trim() || !user) return;
+    if (!query.trim() || !user) {
+      setResults([]);
+      return;
+    }
 
     const timer = setTimeout(async () => {
       setSearching(true);
@@ -70,20 +92,34 @@ export function NewConversationModal({
     };
   }, [query, user]);
 
-  const handleSelect = async (recipient: UserResult) => {
-    if (!user || starting) return;
-    setStarting(recipient.id);
+  const toggleUser = (u: UserResult) => {
+    setSelected((prev) =>
+      prev.some((s) => s.id === u.id)
+        ? prev.filter((s) => s.id !== u.id)
+        : [...prev, u],
+    );
+  };
+
+  const handleStart = async () => {
+    if (!user || selected.length === 0 || starting) return;
+    setStarting(true);
     setError(null);
     try {
-      const conversationId = await getOrCreateConversation(
-        user.id,
-        recipient.id,
-      );
+      let conversationId: string;
+      if (selected.length === 1) {
+        conversationId = await getOrCreateConversation(user.id, selected[0].id);
+      } else {
+        conversationId = await createGroupConversation(
+          user.id,
+          selected.map((u) => u.id),
+          groupName.trim() || undefined,
+        );
+      }
       onConversationReady(conversationId);
       onClose();
     } catch {
       setError("Couldn't start conversation. Please try again.");
-      setStarting(null);
+      setStarting(false);
     }
   };
 
@@ -96,29 +132,45 @@ export function NewConversationModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Search */}
-        <div className="px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Search size={15} className="text-muted-foreground shrink-0" />
-            <Input
+        {/* To: row — chips + search input */}
+        <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 min-h-[52px]">
+          {selected.length === 0 && (
+            <span className="text-sm text-muted-foreground shrink-0">To:</span>
+          )}
+
+          {selected.map((u) => (
+            <span
+              key={u.id}
+              className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
+            >
+              {u.display_name}
+              <button
+                onClick={() => toggleUser(u)}
+                className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
+                aria-label={`Remove ${u.display_name}`}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+
+          <div className="flex items-center gap-2 flex-1 min-w-[100px]">
+            <input
               ref={inputRef}
               type="text"
-              placeholder="Search by name or username…"
+              placeholder={selected.length === 0 ? "Search people…" : "Add more…"}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0 placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
             />
             {searching && (
-              <Loader2
-                size={14}
-                className="text-muted-foreground animate-spin shrink-0"
-              />
+              <Loader2 size={14} className="text-muted-foreground animate-spin shrink-0" />
             )}
           </div>
         </div>
 
         {/* Results */}
-        <div className="max-h-72 overflow-y-auto py-2">
+        <div className="max-h-60 overflow-y-auto">
           {error && (
             <p className="px-5 py-3 text-sm text-destructive">{error}</p>
           )}
@@ -129,36 +181,33 @@ export function NewConversationModal({
             </p>
           )}
 
-          {!query.trim() && (
+          {!query.trim() && selected.length === 0 && (
             <p className="px-5 py-6 text-sm text-center text-muted-foreground">
               Search for someone to message
             </p>
           )}
 
+          {!query.trim() && selected.length > 0 && (
+            <p className="px-5 py-4 text-sm text-center text-muted-foreground">
+              Search to add more people
+            </p>
+          )}
+
           {results.map((result) => {
-            const initials = result.display_name
-              .split(" ")
-              .map((w) => w[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase();
+            const isSelected = selected.some((s) => s.id === result.id);
             return (
               <button
                 key={result.id}
                 type="button"
-                onClick={() => handleSelect(result)}
-                disabled={!!starting}
-                className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-accent disabled:opacity-50 text-left"
+                onClick={() => toggleUser(result)}
+                className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-muted text-left"
               >
                 <Avatar className="size-9 shrink-0">
                   {result.avatar_url && (
-                    <AvatarImage
-                      src={result.avatar_url}
-                      alt={result.display_name}
-                    />
+                    <AvatarImage src={result.avatar_url} alt={result.display_name} />
                   )}
-                  <AvatarFallback className="bg-primary/20 text-primary text-xs font-semibold">
-                    {initials}
+                  <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                    {getInitials(result.display_name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
@@ -169,16 +218,38 @@ export function NewConversationModal({
                     @{result.username}
                   </p>
                 </div>
-                {starting === result.id && (
-                  <Loader2
-                    size={14}
-                    className="animate-spin text-muted-foreground shrink-0"
-                  />
+                {isSelected && (
+                  <Check size={15} className="text-primary shrink-0" />
                 )}
               </button>
             );
           })}
         </div>
+
+        {/* Footer — group name + action button */}
+        {selected.length > 0 && (
+          <div className="px-4 py-4 border-t border-border space-y-3">
+            {isGroup && (
+              <Input
+                placeholder="Group name (optional)…"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleStart()}
+                className="h-9 text-sm"
+              />
+            )}
+            <Button
+              className="w-full"
+              onClick={handleStart}
+              disabled={starting}
+            >
+              {starting && <Loader2 size={14} className="animate-spin" />}
+              {isGroup
+                ? "Create group"
+                : `Message ${selected[0].display_name}`}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

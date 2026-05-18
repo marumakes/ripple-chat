@@ -75,6 +75,7 @@ export function MessagingLayout({
                 handleDelete={removeMessage}
                 currentUserId={currentUserId}
                 isRecipientDeleted={isRecipientDeleted}
+                isGroup={selectedConversation?.type === "group"}
               />
             </div>
           </>

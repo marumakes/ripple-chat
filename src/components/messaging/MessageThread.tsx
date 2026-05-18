@@ -14,6 +14,7 @@ interface MessageThreadProps {
   handleDelete: (id: string) => Promise<void>;
   currentUserId: string | null;
   isRecipientDeleted: boolean;
+  isGroup: boolean;
 }
 
 function formatDateLabel(dateString: string) {
@@ -108,6 +109,7 @@ export function MessageThread({
   handleDelete,
   currentUserId,
   isRecipientDeleted,
+  isGroup,
 }: MessageThreadProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -202,6 +204,11 @@ export function MessageThread({
                 <div className="w-8 shrink-0" />
               ))}
             <div className="max-w-[65%] min-w-0">
+              {isGroup && !isOwn && showAvatar && (
+                <p className="text-xs text-muted-foreground mb-1 px-1">
+                  {msg.sender.display_name}
+                </p>
+              )}
               <Bubble
                 message={msg}
                 isOwn={isOwn}
