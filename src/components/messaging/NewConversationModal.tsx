@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Loader2, X, Check } from "lucide-react";
+import { Loader2, X, Check, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -86,10 +86,9 @@ export function NewConversationModal({
       }
     }, 300);
 
-    return () => {
-      clearTimeout(timer);
-      setResults([]);
-    };
+    // Only cancel the timer on cleanup — don't clear stale results so they
+    // stay visible between keystrokes instead of flashing to empty.
+    return () => clearTimeout(timer);
   }, [query, user]);
 
   const toggleUser = (u: UserResult) => {
@@ -123,73 +122,76 @@ export function NewConversationModal({
     }
   };
 
+  const buttonLabel = () => {
+    if (starting) return null;
+    if (selected.length === 0) return "Select someone to message";
+    if (isGroup) return "Create group";
+    return `Message ${selected[0].display_name}`;
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md p-0 gap-0 bg-card border-border overflow-hidden">
-        <DialogHeader className="px-5 py-4 border-b border-border">
+      <DialogContent className="sm:max-w-md p-0 gap-0 bg-card border-border overflow-hidden flex flex-col max-h-[560px]">
+        <DialogHeader className="px-5 py-4 border-b border-border shrink-0">
           <DialogTitle className="text-sm font-semibold">
             New message
           </DialogTitle>
         </DialogHeader>
 
-        {/* To: row — chips + search input */}
-        <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 min-h-[52px]">
-          {selected.length === 0 && (
-            <span className="text-sm text-muted-foreground shrink-0">To:</span>
+        {/* Search — always in the same place, never moves */}
+        <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">
+          <Search size={14} className="text-muted-foreground shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search people…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
+          />
+          {searching && (
+            <Loader2 size={14} className="text-muted-foreground animate-spin shrink-0" />
           )}
-
-          {selected.map((u) => (
-            <span
-              key={u.id}
-              className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
-            >
-              {u.display_name}
-              <button
-                onClick={() => toggleUser(u)}
-                className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
-                aria-label={`Remove ${u.display_name}`}
-              >
-                <X size={11} />
-              </button>
-            </span>
-          ))}
-
-          <div className="flex items-center gap-2 flex-1 min-w-[100px]">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder={selected.length === 0 ? "Search people…" : "Add more…"}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
-            />
-            {searching && (
-              <Loader2 size={14} className="text-muted-foreground animate-spin shrink-0" />
-            )}
-          </div>
         </div>
 
-        {/* Results */}
-        <div className="max-h-60 overflow-y-auto">
+        {/* Selected chips — only shown when at least one person is picked */}
+        {selected.length > 0 && (
+          <div className="px-4 py-2.5 border-b border-border flex flex-wrap gap-1.5 shrink-0">
+            {selected.map((u) => (
+              <span
+                key={u.id}
+                className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
+              >
+                {u.display_name}
+                <button
+                  onClick={() => toggleUser(u)}
+                  className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
+                  aria-label={`Remove ${u.display_name}`}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Results — scrollable, with a stable min-height so the modal doesn't collapse */}
+        <div className="flex-1 overflow-y-auto min-h-[160px]">
           {error && (
             <p className="px-5 py-3 text-sm text-destructive">{error}</p>
           )}
 
           {!searching && query.trim() && results.length === 0 && !error && (
-            <p className="px-5 py-6 text-sm text-center text-muted-foreground">
+            <p className="px-5 py-8 text-sm text-center text-muted-foreground">
               No users found for "{query}"
             </p>
           )}
 
-          {!query.trim() && selected.length === 0 && (
-            <p className="px-5 py-6 text-sm text-center text-muted-foreground">
-              Search for someone to message
-            </p>
-          )}
-
-          {!query.trim() && selected.length > 0 && (
-            <p className="px-5 py-4 text-sm text-center text-muted-foreground">
-              Search to add more people
+          {!query.trim() && (
+            <p className="px-5 py-8 text-sm text-center text-muted-foreground">
+              {selected.length === 0
+                ? "Search for someone to message"
+                : "Add more people or continue below"}
             </p>
           )}
 
@@ -204,7 +206,10 @@ export function NewConversationModal({
               >
                 <Avatar className="size-9 shrink-0">
                   {result.avatar_url && (
-                    <AvatarImage src={result.avatar_url} alt={result.display_name} />
+                    <AvatarImage
+                      src={result.avatar_url}
+                      alt={result.display_name}
+                    />
                   )}
                   <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
                     {getInitials(result.display_name)}
@@ -226,30 +231,27 @@ export function NewConversationModal({
           })}
         </div>
 
-        {/* Footer — group name + action button */}
-        {selected.length > 0 && (
-          <div className="px-4 py-4 border-t border-border space-y-3">
-            {isGroup && (
-              <Input
-                placeholder="Group name (optional)…"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleStart()}
-                className="h-9 text-sm"
-              />
-            )}
-            <Button
-              className="w-full"
-              onClick={handleStart}
-              disabled={starting}
-            >
-              {starting && <Loader2 size={14} className="animate-spin" />}
-              {isGroup
-                ? "Create group"
-                : `Message ${selected[0].display_name}`}
-            </Button>
-          </div>
-        )}
+        {/* Footer — always visible so selecting someone doesn't shift the layout.
+            The button is just disabled until a selection is made. */}
+        <div className="px-4 pt-3 pb-4 border-t border-border space-y-2.5 shrink-0">
+          {isGroup && (
+            <Input
+              placeholder="Group name (optional)…"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleStart()}
+              className="h-9 text-sm"
+            />
+          )}
+          <Button
+            className="w-full"
+            onClick={handleStart}
+            disabled={selected.length === 0 || starting}
+          >
+            {starting && <Loader2 size={14} className="animate-spin" />}
+            {buttonLabel()}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
