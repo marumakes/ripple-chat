@@ -45,114 +45,125 @@ export function AuthForm() {
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}
-        className="fixed top-5 right-5 w-10 h-10 rounded-xl flex items-center justify-center bg-card border border-border hover:bg-accent transition-colors"
+        className="fixed top-5 right-5 w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
         aria-label="Toggle theme"
       >
         {theme === "dark" ? (
-          <Sun size={17} className="text-muted-foreground" />
+          <Sun size={16} className="text-muted-foreground" />
         ) : (
-          <Moon size={17} className="text-muted-foreground" />
+          <Moon size={16} className="text-muted-foreground" />
         )}
       </button>
 
-      <div className="w-full max-w-sm space-y-8">
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
-            <svg width="28" height="28" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="2.5" fill="white" />
-              <circle
-                cx="7"
-                cy="7"
-                r="5"
-                stroke="white"
-                strokeWidth="1.2"
-                fill="none"
-                opacity="0.6"
-              />
-            </svg>
+      <div className="w-full max-w-xs">
+        {/* Card */}
+        <div className="bg-card border border-border/60 rounded-2xl px-8 py-10 shadow-sm space-y-7">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="2.5" fill="white" />
+                <circle
+                  cx="7"
+                  cy="7"
+                  r="5"
+                  stroke="white"
+                  strokeWidth="1.2"
+                  fill="none"
+                  opacity="0.6"
+                />
+              </svg>
+            </div>
+            <div className="text-center">
+              <h1 className="text-xl font-semibold text-foreground tracking-tight">
+                {mode === "signin" ? "Welcome back" : "Create account"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {mode === "signin"
+                  ? "Sign in to Ripple Chat"
+                  : "Get started with Ripple Chat"}
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-semibold text-foreground">
-              {mode === "signin" ? "Welcome back" : "Create account"}
-            </h1>
-            <p className="text-base text-muted-foreground mt-1">
-              {mode === "signin"
-                ? "Sign in to Ripple Chat"
-                : "Get started with Ripple Chat"}
-            </p>
+
+          {/* Form */}
+          <div className="space-y-3">
+            <Input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              autoComplete="email"
+              className="h-11 text-sm"
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              autoComplete={
+                mode === "signup" ? "new-password" : "current-password"
+              }
+              className="h-11 text-sm"
+            />
+
+            {error && (
+              <p className="text-xs text-destructive px-1">{error}</p>
+            )}
+            {success && (
+              <p className="text-xs text-green-600 dark:text-green-400 px-1">
+                {success}
+              </p>
+            )}
+
+            <Button
+              className="w-full h-11 text-sm font-semibold mt-1"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading
+                ? "Please wait…"
+                : mode === "signin"
+                  ? "Sign in"
+                  : "Create account"}
+            </Button>
           </div>
         </div>
 
-        {/* Form */}
-        <div className="space-y-4">
-          <Input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            autoComplete="email"
-            className="h-12 text-base"
-          />
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            autoComplete={
-              mode === "signup" ? "new-password" : "current-password"
-            }
-            className="h-12 text-base"
-          />
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {success && <p className="text-sm text-green-500">{success}</p>}
-
-          <Button
-            className="w-full h-12 text-base"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading
-              ? "Please wait…"
-              : mode === "signin"
-                ? "Sign in"
-                : "Create account"}
-          </Button>
+        {/* Toggle mode — outside card, like Instagram */}
+        <div className="mt-4 bg-card border border-border/60 rounded-2xl px-8 py-5 shadow-sm text-center">
+          <p className="text-sm text-muted-foreground">
+            {mode === "signin" ? (
+              <>
+                Don't have an account?{" "}
+                <button
+                  onClick={() => {
+                    setMode("signup");
+                    setError(null);
+                  }}
+                  className="text-primary font-semibold hover:opacity-80 transition-opacity"
+                >
+                  Sign up
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button
+                  onClick={() => {
+                    setMode("signin");
+                    setError(null);
+                  }}
+                  className="text-primary font-semibold hover:opacity-80 transition-opacity"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
-
-        {/* Toggle mode */}
-        <p className="text-center text-sm text-muted-foreground">
-          {mode === "signin" ? (
-            <>
-              Don't have an account?{" "}
-              <button
-                onClick={() => {
-                  setMode("signup");
-                  setError(null);
-                }}
-                className="text-primary underline underline-offset-4 hover:opacity-80 transition-opacity"
-              >
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                onClick={() => {
-                  setMode("signin");
-                  setError(null);
-                }}
-                className="text-primary underline underline-offset-4 hover:opacity-80 transition-opacity"
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
       </div>
     </div>
   );

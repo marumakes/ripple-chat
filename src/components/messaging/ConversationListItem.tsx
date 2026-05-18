@@ -54,8 +54,8 @@ export function ConversationListItem({
       type="button"
       onClick={onClick}
       className={clsx(
-        "w-full text-left rounded-xl px-3 py-3.5 flex items-center gap-3.5 transition-colors duration-150",
-        isSelected ? "bg-accent" : "hover:bg-accent/60",
+        "w-full text-left rounded-xl px-3 py-3 flex items-center gap-3 transition-colors duration-150",
+        isSelected ? "bg-primary/8" : "hover:bg-muted/70",
       )}
     >
       <Avatar className="size-11 shrink-0">
@@ -69,10 +69,8 @@ export function ConversationListItem({
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <span
             className={clsx(
-              "text-sm truncate",
-              unreadCount > 0
-                ? "font-semibold text-foreground"
-                : "font-medium text-foreground",
+              "text-sm truncate text-foreground",
+              isSelected || unreadCount > 0 ? "font-semibold" : "font-medium",
             )}
           >
             {title}

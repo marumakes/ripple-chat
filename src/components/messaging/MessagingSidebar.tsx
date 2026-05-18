@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import type { ConversationSummary } from "@/data/conversations";
 import { ConversationList } from "./ConversationList";
 import { NewConversationModal } from "./NewConversationModal";
@@ -34,8 +35,21 @@ export function MessagingSidebar({
   onNewConversation,
 }: MessagingSidebarProps) {
   const [showModal, setShowModal] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.display_name) setDisplayName(data.display_name);
+      });
+  }, [user?.id]);
 
   return (
     <>
@@ -45,7 +59,7 @@ export function MessagingSidebar({
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-5 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
               <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
@@ -97,15 +111,8 @@ export function MessagingSidebar({
           </div>
         </div>
 
-        {/* Label */}
-        <div className="px-5 pt-5 pb-2 shrink-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Messages
-          </p>
-        </div>
-
         {/* List */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
+        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-4">
           {isLoading ? (
             <div className="flex flex-col gap-1.5 px-1">
               {[...Array(5)].map((_, i) => (
@@ -141,7 +148,7 @@ export function MessagingSidebar({
         <div className="px-4 py-4 border-t border-border shrink-0 flex items-center justify-between gap-3">
           <div className="flex flex-col min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {user?.email}
+              {displayName ?? user?.email}
             </p>
             <p className="text-xs text-muted-foreground">Signed in</p>
           </div>

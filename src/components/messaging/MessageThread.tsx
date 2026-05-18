@@ -50,7 +50,7 @@ function Bubble({
 
   if (message.is_deleted) {
     return (
-      <span className="text-sm italic px-4 py-2 rounded-2xl inline-block text-muted-foreground bg-muted border border-border">
+      <span className="text-sm italic px-4 py-2.5 rounded-2xl inline-block text-muted-foreground bg-muted">
         Message deleted
       </span>
     );
@@ -81,7 +81,7 @@ function Bubble({
             "px-4 py-2.5 text-sm leading-relaxed break-words",
             isOwn
               ? "rounded-2xl rounded-br-sm bg-primary text-primary-foreground"
-              : "rounded-2xl rounded-bl-sm bg-card text-card-foreground border border-border",
+              : "rounded-2xl rounded-bl-sm bg-muted text-foreground",
           )}
         >
           {message.content}
@@ -255,7 +255,7 @@ export function MessageThread({
       </div>
 
       {/* Composer */}
-      <div className="px-8 pb-8 pt-4 border-t border-border shrink-0">
+      <div className="px-6 pb-6 pt-3 border-t border-border shrink-0">
         {isRecipientDeleted ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             This account no longer exists.
@@ -263,11 +263,11 @@ export function MessageThread({
         ) : (
           <>
             {sendError && (
-              <p className="text-sm text-destructive mb-3 text-center">
+              <p className="text-xs text-destructive mb-2 text-center">
                 {sendError}
               </p>
             )}
-            <div className="flex items-end gap-4 rounded-2xl px-5 py-4 bg-card border border-border shadow-sm">
+            <div className="flex items-end gap-3 rounded-2xl px-4 py-3 bg-muted/60 border border-border/50">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -280,17 +280,14 @@ export function MessageThread({
               />
               <Button
                 size="icon"
-                className="h-9 w-9 rounded-xl shrink-0"
+                className="size-8 rounded-xl shrink-0"
                 onClick={() => void handleSend()}
                 disabled={!input.trim() || sending}
                 aria-label="Send message"
               >
-                <Send size={15} />
+                <Send size={14} />
               </Button>
             </div>
-            <p className="text-xs mt-2 text-center text-muted-foreground">
-              Enter to send · Shift+Enter for new line
-            </p>
           </>
         )}
       </div>

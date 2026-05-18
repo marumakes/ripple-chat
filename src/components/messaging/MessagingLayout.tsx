@@ -79,23 +79,23 @@ export function MessagingLayout({
             </div>
           </>
         ) : (
-          <div className="flex flex-col flex-1 items-center justify-center px-8 gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-card border border-border flex items-center justify-center">
+          <div className="flex flex-col flex-1 items-center justify-center px-8 gap-4">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
               <MessageCircle
-                size={36}
+                size={32}
                 strokeWidth={1.5}
                 className="text-muted-foreground"
               />
             </div>
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-foreground mb-2">
+              <h2 className="text-lg font-semibold text-foreground mb-1.5">
                 Your messages
               </h2>
-              <p className="text-base text-muted-foreground max-w-xs">
-                Select a conversation from the sidebar or start a new one.
+              <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
+                Select a conversation or start a new one.
               </p>
             </div>
-            <Button onClick={() => setShowModal(true)} className="mt-2">
+            <Button onClick={() => setShowModal(true)}>
               New message
             </Button>
           </div>
