@@ -12,7 +12,16 @@ export type ConversationSummary = {
   lastMessageAt: string;
   avatarUrl?: string;
   unreadCount: number;
-  recipientId?: string; // used to initiate new conversations
+  recipientId?: string;
+  currentUserRole?: "admin" | "member";
+};
+
+export type ConversationMember = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  username: string;
+  role: "admin" | "member";
 };
 
 // ---- Internal Supabase row types ----
@@ -20,6 +29,7 @@ export type ConversationSummary = {
 type ParticipantRow = {
   user_id: string;
   unread_count: number;
+  role: "admin" | "member";
   profiles: {
     id: string;
     display_name: string;
@@ -91,6 +101,7 @@ function mapToSummary(
     avatarUrl,
     unreadCount: me?.unread_count ?? 0,
     recipientId,
+    currentUserRole: me?.role,
   };
 }
 
@@ -113,7 +124,7 @@ export async function getMyConversations(
     .select(
       `id, type, created_at, last_message, last_message_at, group_name,
        conversation_participants (
-         user_id, unread_count,
+         user_id, unread_count, role,
          profiles ( id, display_name, avatar_url )
        )`,
     )
@@ -210,4 +221,81 @@ export async function createGroupConversation(
   });
   if (error) throw error;
   return data as string;
+}
+
+export async function getConversationMembers(
+  conversationId: string,
+): Promise<ConversationMember[]> {
+  const { data, error } = await supabase
+    .from("conversation_participants")
+    .select("user_id, role, profiles ( id, display_name, avatar_url, username )")
+    .eq("conversation_id", conversationId);
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    userId: row.user_id,
+    role: row.role as "admin" | "member",
+    displayName: row.profiles?.display_name ?? "Deleted User",
+    avatarUrl: row.profiles?.avatar_url ?? null,
+    username: row.profiles?.username ?? "",
+  }));
+}
+
+export async function renameGroup(
+  conversationId: string,
+  newName: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("rename_group", {
+    conv_id: conversationId,
+    new_name: newName,
+  });
+  if (error) throw error;
+}
+
+export async function kickMember(
+  conversationId: string,
+  targetUserId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("kick_member", {
+    conv_id: conversationId,
+    target_id: targetUserId,
+  });
+  if (error) throw error;
+}
+
+export async function addGroupMembers(
+  conversationId: string,
+  userIds: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc("add_group_members", {
+    conv_id: conversationId,
+    user_ids: userIds,
+  });
+  if (error) throw error;
+}
+
+export async function promoteToAdmin(
+  conversationId: string,
+  targetUserId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("promote_to_admin", {
+    conv_id: conversationId,
+    target_id: targetUserId,
+  });
+  if (error) throw error;
+}
+
+export async function leaveGroup(conversationId: string): Promise<void> {
+  const { error } = await supabase.rpc("leave_group", {
+    conv_id: conversationId,
+  });
+  if (error) throw error;
+}
+
+export async function deleteGroup(conversationId: string): Promise<void> {
+  const { error } = await supabase.rpc("delete_group", {
+    conv_id: conversationId,
+  });
+  if (error) throw error;
 }

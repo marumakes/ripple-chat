@@ -7,6 +7,7 @@ import { MessagingSidebar } from "./MessagingSidebar";
 import { MessagingHeader } from "./MessagingHeader";
 import { MessageThread } from "./MessageThread";
 import { NewConversationModal } from "./NewConversationModal";
+import { GroupSettingsModal } from "./GroupSettingsModal";
 
 interface MessagingLayoutProps {
   conversations: ConversationSummary[];
@@ -41,6 +42,7 @@ export function MessagingLayout({
 }: MessagingLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const selectedConversation = conversations.find(
     (c) => c.id === selectedConversationId,
@@ -68,6 +70,11 @@ export function MessagingLayout({
             <MessagingHeader
               conversation={selectedConversation}
               sidebarOpen={sidebarOpen}
+              onSettings={
+                selectedConversation.type === "group"
+                  ? () => setShowGroupSettings(true)
+                  : undefined
+              }
             />
             <div className="flex-1 min-h-0 overflow-hidden">
               <MessageThread
@@ -118,6 +125,15 @@ export function MessagingLayout({
           setShowModal(false);
         }}
       />
+
+      {selectedConversation?.type === "group" && (
+        <GroupSettingsModal
+          open={showGroupSettings}
+          onClose={() => setShowGroupSettings(false)}
+          conversation={selectedConversation}
+          currentUserId={currentUserId}
+        />
+      )}
     </div>
   );
 }

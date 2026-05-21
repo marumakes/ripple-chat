@@ -1,14 +1,17 @@
+import { Settings } from "lucide-react";
 import type { ConversationSummary } from "@/data/conversations";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface MessagingHeaderProps {
   conversation: ConversationSummary;
   sidebarOpen: boolean;
+  onSettings?: () => void;
 }
 
 export function MessagingHeader({
   conversation,
   sidebarOpen,
+  onSettings,
 }: MessagingHeaderProps) {
   const { title, avatarUrl, type } = conversation;
 
@@ -31,7 +34,7 @@ export function MessagingHeader({
           {initials}
         </AvatarFallback>
       </Avatar>
-      <div className="flex flex-col min-w-0">
+      <div className="flex flex-col min-w-0 flex-1">
         <span className="text-base font-semibold text-foreground truncate">
           {title}
         </span>
@@ -39,6 +42,15 @@ export function MessagingHeader({
           {type === "direct" ? "Direct message" : "Group chat"}
         </span>
       </div>
+      {type === "group" && onSettings && (
+        <button
+          onClick={onSettings}
+          className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          title="Group settings"
+        >
+          <Settings size={18} />
+        </button>
+      )}
     </div>
   );
 }

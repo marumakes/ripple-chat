@@ -17,7 +17,7 @@ function buildChannel(userId: string, onUpdate: () => void) {
     .on(
       "postgres_changes",
       {
-        event: "UPDATE",
+        event: "*",
         schema: "public",
         table: "conversation_participants",
         filter: `user_id=eq.${userId}`,
