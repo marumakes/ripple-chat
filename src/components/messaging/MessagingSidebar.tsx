@@ -10,10 +10,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { getProfile } from "@/data/profile";
 import type { ConversationSummary } from "@/data/conversations";
 import { ConversationList } from "./ConversationList";
 import { NewConversationModal } from "./NewConversationModal";
+import { ProfileModal } from "./ProfileModal";
 
 interface MessagingSidebarProps {
   open: boolean;
@@ -34,21 +35,20 @@ export function MessagingSidebar({
   onSelectConversation,
   onNewConversation,
 }: MessagingSidebarProps) {
-  const [showModal, setShowModal] = useState(false);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [showNewConvo, setShowNewConvo] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState<{
+    display_name: string;
+    username: string;
+  } | null>(null);
   const { theme, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
 
   useEffect(() => {
     if (!user?.id) return;
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.display_name) setDisplayName(data.display_name);
-      });
+    getProfile(user.id).then((p) => {
+      if (p) setProfile({ display_name: p.display_name, username: p.username });
+    });
   }, [user?.id]);
 
   return (
@@ -94,7 +94,7 @@ export function MessagingSidebar({
               variant="ghost"
               size="icon"
               className="h-9 w-9"
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowNewConvo(true)}
               aria-label="New conversation"
             >
               <SquarePen size={17} />
@@ -134,7 +134,7 @@ export function MessagingSidebar({
               <p className="text-sm text-muted-foreground leading-relaxed">
                 No conversations yet.{" "}
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => setShowNewConvo(true)}
                   className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
                 >
                   Start one
@@ -144,14 +144,20 @@ export function MessagingSidebar({
           )}
         </div>
 
-        {/* Footer — current user + sign out */}
-        <div className="px-4 py-4 border-t border-border shrink-0 flex items-center justify-between gap-3">
-          <div className="flex flex-col min-w-0">
+        {/* Footer — clickable user info opens profile editor */}
+        <div className="px-4 py-3 border-t border-border shrink-0 flex items-center justify-between gap-3">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex flex-col min-w-0 text-left rounded-lg px-1 py-1 hover:bg-muted transition-colors"
+            aria-label="Edit profile"
+          >
             <p className="text-sm font-medium text-foreground truncate">
-              {displayName ?? user?.email}
+              {profile?.display_name ?? user?.email}
             </p>
-            <p className="text-xs text-muted-foreground">Signed in</p>
-          </div>
+            <p className="text-xs text-muted-foreground truncate">
+              {profile ? `@${profile.username}` : "Signed in"}
+            </p>
+          </button>
           <Button
             variant="ghost"
             size="icon"
@@ -187,12 +193,18 @@ export function MessagingSidebar({
       )}
 
       <NewConversationModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
+        open={showNewConvo}
+        onClose={() => setShowNewConvo(false)}
         onConversationReady={(id) => {
           onNewConversation(id);
-          setShowModal(false);
+          setShowNewConvo(false);
         }}
+      />
+
+      <ProfileModal
+        open={showProfile}
+        onClose={() => setShowProfile(false)}
+        onSaved={(updated) => setProfile(updated)}
       />
     </>
   );
