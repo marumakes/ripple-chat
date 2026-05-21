@@ -71,21 +71,39 @@ function mapMessageRow(m: MessageRow): Message {
 const MESSAGE_SELECT =
   "id, conversation_id, content, created_at, deleted_at, is_deleted, sender_id ( id, display_name, avatar_url )";
 
+const PAGE_SIZE = 50;
+
+export type FetchMessagesResult = {
+  messages: Message[];
+  hasMore: boolean;
+};
+
 /**
- * Loads all message rows for a conversation, oldest first, with
- * nested sender profile fields joined from profiles.
+ * Loads the PAGE_SIZE most recent messages for a conversation, returned
+ * oldest-first. Pass a `before` ISO timestamp to fetch the page prior to
+ * the oldest currently loaded message (for "load earlier" pagination).
  */
 export async function fetchMessages(
   conversationId: string,
-): Promise<Message[]> {
-  const { data, error } = await supabase
+  before?: string,
+): Promise<FetchMessagesResult> {
+  let query = supabase
     .from("messages")
     .select(MESSAGE_SELECT)
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(PAGE_SIZE);
 
+  if (before) query = query.lt("created_at", before);
+
+  const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map((m: MessageRow) => mapMessageRow(m));
+
+  const rows = (data ?? []) as MessageRow[];
+  return {
+    messages: rows.map(mapMessageRow).reverse(),
+    hasMore: rows.length === PAGE_SIZE,
+  };
 }
 
 /**

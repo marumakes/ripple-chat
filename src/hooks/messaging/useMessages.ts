@@ -31,15 +31,13 @@ function handleIncomingMessage(
 
 /**
  * Loads and subscribes to messages for one conversation.
- * Exposes send and soft-delete helpers.
- *
- * @param conversationId - Active conversation id, or null when none selected.
- * @returns Messages, loading/error flags, sendError, send, and removeMessage.
+ * Exposes send, soft-delete, and load-earlier helpers.
  */
 export function useMessages(conversationId: string | null) {
   const { user, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -54,20 +52,21 @@ export function useMessages(conversationId: string | null) {
     const resetUnread = () =>
       supabase.rpc("reset_unread_count", { conv_id: cid, uid: user.id });
 
-    // Only show loading spinner for conversations we haven't loaded yet
     const alreadyLoaded = loadedConversations.current.has(cid);
 
     void (async () => {
       if (!alreadyLoaded) setIsLoading(true);
       setError(null);
       try {
-        const msgs = await fetchMessages(cid);
+        const { messages: msgs, hasMore: more } = await fetchMessages(cid);
         setMessages(msgs);
+        setHasMore(more);
         loadedConversations.current.add(cid);
         await resetUnread();
       } catch (err) {
         setError(err as Error);
         setMessages([]);
+        setHasMore(false);
       } finally {
         setIsLoading(false);
       }
@@ -78,17 +77,19 @@ export function useMessages(conversationId: string | null) {
     );
 
     // On cleanup: unsubscribe the channel but do NOT clear messages.
-    // Clearing causes the flicker — the stale messages are fine to
-    // show briefly while the next fetch completes.
     return () => {
       void unsubscribe();
     };
   }, [conversationId, user, authLoading]);
 
-  /**
-   * Sends a message to the active conversation.
-   * Surfaces failures as sendError rather than throwing.
-   */
+  const loadMore = useCallback(async () => {
+    if (!conversationId || !messages.length) return;
+    const cursor = messages[0].created_at;
+    const { messages: older, hasMore: more } = await fetchMessages(conversationId, cursor);
+    setMessages((current) => [...older, ...current]);
+    setHasMore(more);
+  }, [conversationId, messages]);
+
   const send = useCallback(
     async (content: string) => {
       if (!user) throw new Error("Not authenticated");
@@ -105,10 +106,6 @@ export function useMessages(conversationId: string | null) {
     [conversationId, user],
   );
 
-  /**
-   * Optimistically marks a message as deleted locally, then
-   * persists the soft-delete to Supabase.
-   */
   const removeMessage = async (messageId: string) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, is_deleted: true } : m)),
@@ -120,5 +117,5 @@ export function useMessages(conversationId: string | null) {
     }
   };
 
-  return { messages, isLoading, error, sendError, send, removeMessage };
+  return { messages, isLoading, hasMore, error, sendError, send, removeMessage, loadMore };
 }

@@ -15,6 +15,8 @@ interface MessagingLayoutProps {
   onSelectConversation: (id: string) => void;
   messages: Message[];
   isMessageLoading: boolean;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
   loadingError: Error | null;
   sendError: string | null;
   send: (content: string) => Promise<void>;
@@ -29,6 +31,8 @@ export function MessagingLayout({
   onSelectConversation,
   messages,
   isMessageLoading,
+  hasMore,
+  loadMore,
   loadingError,
   sendError,
   send,
@@ -67,8 +71,11 @@ export function MessagingLayout({
             />
             <div className="flex-1 min-h-0 overflow-hidden">
               <MessageThread
+                conversationId={selectedConversationId}
                 messages={messages}
                 isLoading={isMessageLoading}
+                hasMore={hasMore}
+                loadMore={loadMore}
                 loadingError={loadingError}
                 sendError={sendError}
                 send={send}

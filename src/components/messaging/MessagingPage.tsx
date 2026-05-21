@@ -19,10 +19,12 @@ export function MessagingPage() {
   const {
     messages,
     isLoading: isMessageLoading,
+    hasMore,
     error: loadingError,
     sendError,
     send,
     removeMessage,
+    loadMore,
   } = useMessages(selectedConversationId);
 
   if (!user) return null;
@@ -35,6 +37,8 @@ export function MessagingPage() {
       onSelectConversation={setSelectedConversationId}
       messages={messages}
       isMessageLoading={isMessageLoading}
+      hasMore={hasMore}
+      loadMore={loadMore}
       loadingError={loadingError}
       sendError={sendError}
       send={send}

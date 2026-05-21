@@ -1,13 +1,17 @@
-import { useRef, useEffect, useState, type ReactNode } from "react";
-import { Send, Trash2 } from "lucide-react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, type ReactNode } from "react";
+import { Send, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Message } from "@/data/messages";
+import { useTypingPresence } from "@/hooks/messaging/useTypingPresence";
 import clsx from "clsx";
 
 interface MessageThreadProps {
+  conversationId: string;
   messages: Message[];
   isLoading: boolean;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
   loadingError: Error | null;
   sendError: string | null;
   send: (content: string) => Promise<void>;
@@ -15,6 +19,12 @@ interface MessageThreadProps {
   currentUserId: string | null;
   isRecipientDeleted: boolean;
   isGroup: boolean;
+}
+
+function formatTypingText(names: string[]): string {
+  if (names.length === 1) return `${names[0]} is typing…`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
+  return "Several people are typing…";
 }
 
 function formatDateLabel(dateString: string) {
@@ -101,8 +111,11 @@ function Bubble({
 }
 
 export function MessageThread({
+  conversationId,
   messages,
   isLoading,
+  hasMore,
+  loadMore,
   loadingError,
   sendError,
   send,
@@ -113,14 +126,46 @@ export function MessageThread({
 }: MessageThreadProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollAnchorRef = useRef<number | null>(null);
+  const preventScrollToBottomRef = useRef(false);
+
+  const { typingNames, setTyping } = useTypingPresence(conversationId, currentUserId);
+
+  const stopTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    setTyping(false);
+  }, [setTyping]);
+
+  // Clean up on unmount or conversation change.
+  useEffect(() => () => stopTyping(), [stopTyping]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [currentUserId]);
 
+  // After prepending older messages, restore the scroll position so the
+  // viewport stays anchored to the same message rather than jumping to top.
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    const savedHeight = scrollAnchorRef.current;
+    if (!container || savedHeight === null) return;
+    container.scrollTop += container.scrollHeight - savedHeight;
+    scrollAnchorRef.current = null;
+  }, [messages]);
+
   useEffect(() => {
+    if (preventScrollToBottomRef.current) {
+      preventScrollToBottomRef.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 50);
@@ -134,9 +179,34 @@ export function MessageThread({
     ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
   }, [input]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (e.target.value.trim()) {
+      setTyping(true);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => setTyping(false), 2000);
+    } else {
+      stopTyping();
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    const container = scrollContainerRef.current;
+    if (container) scrollAnchorRef.current = container.scrollHeight;
+    preventScrollToBottomRef.current = true;
+    setLoadingMore(true);
+    try {
+      await loadMore();
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
+    stopTyping();
     setSending(true);
     try {
       await send(trimmed);
@@ -224,7 +294,7 @@ export function MessageThread({
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-8 py-6">
         {isLoading && (
           <div className="flex flex-col gap-4 mt-4">
             {[...Array(4)].map((_, i) => (
@@ -255,11 +325,43 @@ export function MessageThread({
 
         {!isLoading && !loadingError && messages.length > 0 && (
           <div className="flex flex-col">
+            {hasMore && (
+              <div className="flex justify-center py-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-8 px-4 rounded-full"
+                  onClick={() => void handleLoadMore()}
+                  disabled={loadingMore}
+                >
+                  {loadingMore && <Loader2 size={12} className="animate-spin mr-1.5" />}
+                  Load earlier messages
+                </Button>
+              </div>
+            )}
             {buildMessageList()}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
+
+      {/* Typing indicator */}
+      {typingNames.length > 0 && (
+        <div className="px-6 pb-1 flex items-center gap-2 shrink-0">
+          <div className="flex items-end gap-0.5 pb-px">
+            {[0, 150, 300].map((delay) => (
+              <span
+                key={delay}
+                className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
+                style={{ animationDelay: `${delay}ms` }}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {formatTypingText(typingNames)}
+          </p>
+        </div>
+      )}
 
       {/* Composer */}
       <div className="px-6 pb-6 pt-3 border-t border-border shrink-0">
@@ -278,7 +380,7 @@ export function MessageThread({
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Message…"
                 rows={1}
