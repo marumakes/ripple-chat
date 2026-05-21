@@ -68,27 +68,40 @@ function mapMessageRow(m: MessageRow): Message {
 // Queries
 // ============================================================
 
+const MESSAGE_SELECT =
+  "id, conversation_id, content, created_at, deleted_at, is_deleted, sender_id ( id, display_name, avatar_url )";
+
 /**
  * Loads all message rows for a conversation, oldest first, with
  * nested sender profile fields joined from profiles.
- *
- * @param conversationId - UUID of the target conversation.
- * @returns Messages ordered by created_at ascending.
  */
 export async function fetchMessages(
   conversationId: string,
 ): Promise<Message[]> {
   const { data, error } = await supabase
     .from("messages")
-    .select(
-      `id, conversation_id, content, created_at, deleted_at, is_deleted,
-       sender_id ( id, display_name, avatar_url )`,
-    )
+    .select(MESSAGE_SELECT)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
   return (data ?? []).map((m: MessageRow) => mapMessageRow(m));
+}
+
+/**
+ * Fetches a single message by id with sender fields joined.
+ * Used by sendMessage and the realtime handler to avoid re-fetching
+ * the whole thread just to hydrate one row.
+ */
+async function fetchMessageById(messageId: string): Promise<Message | null> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("id", messageId)
+    .single();
+
+  if (error || !data) return null;
+  return mapMessageRow(data as MessageRow);
 }
 
 // ============================================================
@@ -118,11 +131,7 @@ export async function sendMessage(
 
   if (error || !inserted) throw error ?? new Error("Insert returned no data");
 
-  // Re-fetch with joined sender fields so the returned type is consistent
-  // with what fetchMessages returns (and what the realtime handler expects).
-  const full = await fetchMessages(conversationId);
-  const message = full.find((m) => m.id === inserted.id);
-
+  const message = await fetchMessageById(inserted.id);
   if (!message) throw new Error("Inserted message not found after fetch");
   return message;
 }
@@ -174,12 +183,8 @@ export function subscribeToMessages(
         if (payload.eventType !== "INSERT" && payload.eventType !== "UPDATE")
           return;
 
-        const full = await fetchMessages(conversationId);
-        const message = full.find((m) => m.id === payload.new.id);
-
-        if (message) {
-          onChange(payload.eventType, message);
-        }
+        const message = await fetchMessageById(payload.new.id);
+        if (message) onChange(payload.eventType, message);
       },
     )
     .subscribe();
