@@ -1,5 +1,5 @@
 import { useRef, useEffect, useLayoutEffect, useState, useCallback, type ReactNode } from "react";
-import { Send, Trash2, Loader2 } from "lucide-react";
+import { Send, Trash2, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Message } from "@/data/messages";
@@ -127,12 +127,15 @@ export function MessageThread({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollAnchorRef = useRef<number | null>(null);
   const preventScrollToBottomRef = useRef(false);
+  const atBottomRef = useRef(true);
 
   const { typingNames, setTyping } = useTypingPresence(conversationId, currentUserId);
 
@@ -146,6 +149,28 @@ export function MessageThread({
 
   // Clean up on unmount or conversation change.
   useEffect(() => () => stopTyping(), [stopTyping]);
+
+  // Reset scroll state when switching conversations.
+  useEffect(() => {
+    atBottomRef.current = true;
+    setAtBottom(true);
+    setUnreadCount(0);
+  }, [conversationId]);
+
+  // Track whether the viewport is near the bottom.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      const nearBottom =
+        container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+      atBottomRef.current = nearBottom;
+      setAtBottom(nearBottom);
+      if (nearBottom) setUnreadCount(0);
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
@@ -164,6 +189,10 @@ export function MessageThread({
   useEffect(() => {
     if (preventScrollToBottomRef.current) {
       preventScrollToBottomRef.current = false;
+      return;
+    }
+    if (!atBottomRef.current) {
+      setUnreadCount((c) => c + 1);
       return;
     }
     const timer = setTimeout(() => {
@@ -188,6 +217,11 @@ export function MessageThread({
     } else {
       stopTyping();
     }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setUnreadCount(0);
   };
 
   const handleLoadMore = async () => {
@@ -294,7 +328,8 @@ export function MessageThread({
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 relative min-h-0">
+      <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto px-8 py-6">
         {isLoading && (
           <div className="flex flex-col gap-4 mt-4">
             {[...Array(4)].map((_, i) => (
@@ -343,6 +378,21 @@ export function MessageThread({
             <div ref={messagesEndRef} />
           </div>
         )}
+      </div>
+
+      {!atBottom && (
+        <div className="absolute bottom-4 inset-x-0 flex justify-center z-10 pointer-events-none">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="rounded-full shadow-md gap-1.5 h-8 px-4 pointer-events-auto"
+            onClick={scrollToBottom}
+          >
+            {unreadCount > 0 && <span className="text-xs">{unreadCount} new</span>}
+            <ChevronDown size={14} />
+          </Button>
+        </div>
+      )}
       </div>
 
       {/* Typing indicator */}
