@@ -2,6 +2,8 @@
 
 A full-stack real-time messaging app built with React and Supabase. Designed to serve as a standalone starter or reference implementation for adding messaging to a larger project.
 
+![Ripple Chat Demo](./docs/demo.gif)
+
 ---
 
 ## About
