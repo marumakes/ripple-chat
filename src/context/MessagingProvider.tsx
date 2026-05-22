@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { MessagingContext } from "@/context/MessagingContext";
 
 /**
@@ -10,10 +10,13 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
     string | null
   >(null);
 
+  const value = useMemo(
+    () => ({ activeConversationId, setActiveConversationId }),
+    [activeConversationId],
+  );
+
   return (
-    <MessagingContext.Provider
-      value={{ activeConversationId, setActiveConversationId }}
-    >
+    <MessagingContext.Provider value={value}>
       {children}
     </MessagingContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import {
@@ -40,42 +40,41 @@ export function useConversations() {
   const [error, setError] = useState<Error | null>(null);
   const hasFetched = useRef(false);
 
-  const loadConversations = useCallback(async (userId: string) => {
-    // Only show loading skeleton on the very first fetch.
-    // Subsequent refetches (from realtime events) update silently.
-    if (!hasFetched.current) setIsLoading(true);
-    setError(null);
-    try {
-      setConversations(await getMyConversations(userId));
-      hasFetched.current = true;
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (authLoading || !user) return;
 
-    void (async () => {
-      await loadConversations(user.id);
-    })();
+    let cancelled = false;
+    const userId = user.id;
 
-    const channel = buildChannel(user.id, () => {
-      void loadConversations(user.id);
+    const load = async () => {
+      // Only show loading skeleton on the very first fetch.
+      // Subsequent refetches (from realtime events) update silently.
+      if (!hasFetched.current) setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getMyConversations(userId);
+        if (!cancelled) {
+          setConversations(data);
+          hasFetched.current = true;
+        }
+      } catch (err) {
+        if (!cancelled) setError(err as Error);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void load();
+
+    const channel = buildChannel(userId, () => {
+      if (!cancelled) void load();
     });
+
     return () => {
+      cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [authLoading, user, loadConversations]);
+  }, [authLoading, user]);
 
-  return {
-    conversations,
-    isLoading,
-    error,
-    refetch: () => {
-      if (user) loadConversations(user.id);
-    },
-  };
+  return { conversations, isLoading, error };
 }

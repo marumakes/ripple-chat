@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MessagingLayout } from "@/components/messaging/MessagingLayout";
 import { useConversations } from "@/hooks/messaging/useConversations";
 import { useMessages } from "@/hooks/messaging/useMessages";
@@ -17,16 +17,12 @@ export function MessagingPage() {
   const { conversations, isLoading: isConversationLoading } =
     useConversations();
 
-  // If the selected conversation disappears (kicked, group deleted), clear the selection.
-  useEffect(() => {
-    if (
-      selectedConversationId &&
-      conversations.length > 0 &&
-      !conversations.find((c) => c.id === selectedConversationId)
-    ) {
-      setSelectedConversationId(null);
-    }
-  }, [conversations, selectedConversationId]);
+  // If the selected conversation was removed (kicked, group deleted), treat as deselected.
+  const activeConversationId =
+    selectedConversationId !== null &&
+    conversations.some((c) => c.id === selectedConversationId)
+      ? selectedConversationId
+      : null;
 
   const {
     messages,
@@ -37,7 +33,7 @@ export function MessagingPage() {
     send,
     removeMessage,
     loadMore,
-  } = useMessages(selectedConversationId);
+  } = useMessages(activeConversationId);
 
   if (!user) return null;
 
@@ -45,7 +41,7 @@ export function MessagingPage() {
     <MessagingLayout
       conversations={conversations}
       isConversationLoading={isConversationLoading}
-      selectedConversationId={selectedConversationId}
+      selectedConversationId={activeConversationId}
       onSelectConversation={setSelectedConversationId}
       messages={messages}
       isMessageLoading={isMessageLoading}

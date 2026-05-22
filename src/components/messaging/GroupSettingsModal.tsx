@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Search, Shield, UserMinus, ChevronUp, UserPlus, X } from "lucide-react";
 import {
   Dialog,
@@ -74,7 +74,7 @@ export function GroupSettingsModal({
 
   const addInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     setMembersLoading(true);
     setMembersError(null);
     try {
@@ -84,7 +84,7 @@ export function GroupSettingsModal({
     } finally {
       setMembersLoading(false);
     }
-  };
+  }, [conversation.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,12 +95,12 @@ export function GroupSettingsModal({
     setAddQuery("");
     setAddSelected([]);
     void fetchMembers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, conversation.id]);
+  }, [open, conversation.id, conversation.title, fetchMembers]);
 
   useEffect(() => {
     if (!showAddPanel) return;
-    setTimeout(() => addInputRef.current?.focus(), 50);
+    const id = setTimeout(() => addInputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, [showAddPanel]);
 
   // Debounced search for add-members panel.
@@ -302,9 +302,7 @@ export function GroupSettingsModal({
                     >
                       <Avatar className="size-8 shrink-0">
                         {member.avatarUrl && (
-                          <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                            {getInitials(member.displayName)}
-                          </AvatarFallback>
+                          <AvatarImage src={member.avatarUrl} alt={member.displayName} />
                         )}
                         <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
                           {getInitials(member.displayName)}
@@ -420,9 +418,7 @@ export function GroupSettingsModal({
                     >
                       <Avatar className="size-7 shrink-0">
                         {result.avatar_url && (
-                          <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                            {getInitials(result.display_name)}
-                          </AvatarFallback>
+                          <AvatarImage src={result.avatar_url} alt={result.display_name} />
                         )}
                         <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
                           {getInitials(result.display_name)}
