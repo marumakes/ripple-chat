@@ -1,17 +1,29 @@
-import { Settings } from "lucide-react";
+import { Settings, MoreHorizontal, Ban, CircleSlash } from "lucide-react";
 import type { ConversationSummary } from "@/data/conversations";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface MessagingHeaderProps {
   conversation: ConversationSummary;
   sidebarOpen: boolean;
   onSettings?: () => void;
+  iBlockedThem?: boolean;
+  onBlock?: () => void;
+  onUnblock?: () => void;
 }
 
 export function MessagingHeader({
   conversation,
   sidebarOpen,
   onSettings,
+  iBlockedThem,
+  onBlock,
+  onUnblock,
 }: MessagingHeaderProps) {
   const { title, avatarUrl, type } = conversation;
 
@@ -42,6 +54,7 @@ export function MessagingHeader({
           {type === "direct" ? "Direct message" : "Group chat"}
         </span>
       </div>
+
       {type === "group" && onSettings && (
         <button
           onClick={onSettings}
@@ -50,6 +63,32 @@ export function MessagingHeader({
         >
           <Settings size={18} />
         </button>
+      )}
+
+      {type === "direct" && (onBlock || onUnblock) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              aria-label="More options"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {iBlockedThem ? (
+              <DropdownMenuItem onClick={onUnblock}>
+                <CircleSlash size={14} className="mr-2 shrink-0" />
+                Unblock {title}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem destructive onClick={onBlock}>
+                <Ban size={14} className="mr-2 shrink-0" />
+                Block {title}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

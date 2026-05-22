@@ -19,6 +19,9 @@ interface MessageThreadProps {
   currentUserId: string | null;
   isRecipientDeleted: boolean;
   isGroup: boolean;
+  iBlockedThem?: boolean;
+  theyBlockedMe?: boolean;
+  onUnblock?: () => void;
 }
 
 function formatTypingText(names: string[]): string {
@@ -123,6 +126,9 @@ export function MessageThread({
   currentUserId,
   isRecipientDeleted,
   isGroup,
+  iBlockedThem,
+  theyBlockedMe,
+  onUnblock,
 }: MessageThreadProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -418,6 +424,22 @@ export function MessageThread({
         {isRecipientDeleted ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             This account no longer exists.
+          </p>
+        ) : iBlockedThem ? (
+          <div className="flex items-center justify-center gap-2 py-4">
+            <p className="text-sm text-muted-foreground">
+              You&apos;ve blocked this user.
+            </p>
+            <button
+              onClick={onUnblock}
+              className="text-sm text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Unblock
+            </button>
+          </div>
+        ) : theyBlockedMe ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            You can&apos;t reply to this conversation.
           </p>
         ) : (
           <>

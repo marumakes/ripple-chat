@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ConversationSummary } from "@/data/conversations";
 import type { Message } from "@/data/messages";
+import { useBlockStatus } from "@/hooks/messaging/useBlockStatus";
 import { MessagingSidebar } from "./MessagingSidebar";
 import { MessagingHeader } from "./MessagingHeader";
 import { MessageThread } from "./MessageThread";
@@ -49,6 +50,12 @@ export function MessagingLayout({
   );
   const isRecipientDeleted = selectedConversation?.title === "Deleted User";
 
+  const { iBlockedThem, theyBlockedMe, block, unblock } = useBlockStatus(
+    selectedConversationId,
+    selectedConversation?.type,
+    selectedConversation?.recipientId,
+  );
+
   return (
     <div className="flex h-full overflow-hidden bg-background">
       <MessagingSidebar
@@ -75,6 +82,9 @@ export function MessagingLayout({
                   ? () => setShowGroupSettings(true)
                   : undefined
               }
+              iBlockedThem={iBlockedThem}
+              onBlock={block}
+              onUnblock={unblock}
             />
             <div className="flex-1 min-h-0 overflow-hidden">
               <MessageThread
@@ -90,6 +100,9 @@ export function MessagingLayout({
                 currentUserId={currentUserId}
                 isRecipientDeleted={isRecipientDeleted}
                 isGroup={selectedConversation?.type === "group"}
+                iBlockedThem={iBlockedThem}
+                theyBlockedMe={theyBlockedMe}
+                onUnblock={unblock}
               />
             </div>
           </>
