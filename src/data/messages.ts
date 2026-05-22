@@ -162,10 +162,9 @@ export async function sendMessage(
  * @param messageId - Primary key of the message to delete.
  */
 export async function deleteMessage(messageId: string): Promise<void> {
-  const { error } = await supabase
-    .from("messages")
-    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-    .eq("id", messageId);
+  const { error } = await supabase.rpc("delete_message", {
+    message_id: messageId,
+  });
 
   if (error) throw error;
 }

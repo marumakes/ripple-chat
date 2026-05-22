@@ -50,7 +50,7 @@ export function useMessages(conversationId: string | null) {
 
     const cid = conversationId;
     const resetUnread = () =>
-      supabase.rpc("reset_unread_count", { conv_id: cid, uid: user.id });
+      supabase.rpc("reset_unread_count", { conv_id: cid });
 
     const alreadyLoaded = loadedConversations.current.has(cid);
 
