@@ -40,6 +40,7 @@ export function MessagingSidebar({
   const [profile, setProfile] = useState<{
     display_name: string;
     username: string;
+    avatar_url: string | null;
   } | null>(null);
   const { theme, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
@@ -47,7 +48,7 @@ export function MessagingSidebar({
   useEffect(() => {
     if (!user?.id) return;
     getProfile(user.id).then((p) => {
-      if (p) setProfile({ display_name: p.display_name, username: p.username });
+      if (p) setProfile({ display_name: p.display_name, username: p.username, avatar_url: p.avatar_url });
     });
   }, [user?.id]);
 
@@ -148,15 +149,30 @@ export function MessagingSidebar({
         <div className="px-4 py-3 border-t border-border shrink-0 flex items-center justify-between gap-3">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex flex-col min-w-0 text-left rounded-lg px-1 py-1 hover:bg-muted transition-colors"
+            className="flex items-center gap-3 min-w-0 text-left rounded-lg px-1 py-1 hover:bg-muted transition-colors"
             aria-label="Edit profile"
           >
-            <p className="text-sm font-medium text-foreground truncate">
-              {profile?.display_name ?? user?.email}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {profile ? `@${profile.username}` : "Signed in"}
-            </p>
+            <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-semibold text-primary">
+                  {(profile?.display_name ?? user?.email ?? "?")[0].toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {profile?.display_name ?? user?.email}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {profile ? `@${profile.username}` : "Signed in"}
+              </p>
+            </div>
           </button>
           <Button
             variant="ghost"
