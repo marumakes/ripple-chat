@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Search, Shield, UserMinus, ChevronUp, UserPlus, X } from "lucide-react";
+import { Loader2, Search, Shield, UserMinus, ChevronUp, UserPlus, X, Camera } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,9 @@ import {
   leaveGroup,
   deleteGroup,
   searchUsers,
+  uploadGroupAvatar,
 } from "@/data/conversations";
+import { validateAvatarFile } from "@/data/profile";
 
 interface GroupSettingsModalProps {
   open: boolean;
@@ -51,6 +53,13 @@ export function GroupSettingsModal({
   currentUserId,
 }: GroupSettingsModalProps) {
   const isAdmin = conversation.currentUserRole === "admin";
+
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const [groupAvatarUrl, setGroupAvatarUrl] = useState<string | null>(
+    conversation.avatarUrl ?? null,
+  );
+  const [uploadingGroupAvatar, setUploadingGroupAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const [members, setMembers] = useState<ConversationMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -88,6 +97,8 @@ export function GroupSettingsModal({
 
   useEffect(() => {
     if (!open) return;
+    setGroupAvatarUrl(conversation.avatarUrl ?? null);
+    setAvatarError(null);
     setNameValue(conversation.title);
     setNameError(null);
     setActionError(null);
@@ -95,7 +106,7 @@ export function GroupSettingsModal({
     setAddQuery("");
     setAddSelected([]);
     void fetchMembers();
-  }, [open, conversation.id, conversation.title, fetchMembers]);
+  }, [open, conversation.id, conversation.title, conversation.avatarUrl, fetchMembers]);
 
   useEffect(() => {
     if (!showAddPanel) return;
@@ -123,6 +134,36 @@ export function GroupSettingsModal({
     }, 300);
     return () => clearTimeout(timer);
   }, [addQuery, currentUserId, members]);
+
+  const handleGroupAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validationError = validateAvatarFile(file);
+    if (validationError) {
+      setAvatarError(validationError);
+      e.target.value = "";
+      return;
+    }
+
+    setAvatarError(null);
+    setUploadingGroupAvatar(true);
+
+    const preview = URL.createObjectURL(file);
+    setGroupAvatarUrl(preview);
+
+    try {
+      const remoteUrl = await uploadGroupAvatar(conversation.id, file);
+      setGroupAvatarUrl(remoteUrl);
+    } catch {
+      setAvatarError("Failed to upload avatar. Please try again.");
+      setGroupAvatarUrl(conversation.avatarUrl ?? null);
+    } finally {
+      setUploadingGroupAvatar(false);
+      URL.revokeObjectURL(preview);
+      e.target.value = "";
+    }
+  };
 
   const handleSaveName = async () => {
     if (nameSaving || !nameValue.trim()) return;
@@ -229,6 +270,52 @@ export function GroupSettingsModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
+          {/* Group avatar */}
+          <div className="flex flex-col items-center gap-2 px-5 py-5 border-b border-border">
+            <button
+              type="button"
+              onClick={() => isAdmin && avatarFileInputRef.current?.click()}
+              disabled={uploadingGroupAvatar}
+              className={`relative w-16 h-16 rounded-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed ${isAdmin ? "group cursor-pointer" : "cursor-default"}`}
+              aria-label={isAdmin ? "Change group avatar" : undefined}
+            >
+              {groupAvatarUrl ? (
+                <img
+                  src={groupAvatarUrl}
+                  alt="Group avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-primary/15 flex items-center justify-center">
+                  <span className="text-xl font-semibold text-primary">
+                    {conversation.title.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                  {uploadingGroupAvatar ? (
+                    <Loader2 size={16} className="animate-spin text-white" />
+                  ) : (
+                    <Camera size={16} className="text-white" />
+                  )}
+                </div>
+              )}
+            </button>
+            {avatarError && (
+              <p className="text-xs text-destructive text-center">{avatarError}</p>
+            )}
+            {isAdmin && (
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleGroupAvatarChange}
+              />
+            )}
+          </div>
+
           {/* Group name */}
           {isAdmin && (
             <div className="px-5 py-4 border-b border-border">

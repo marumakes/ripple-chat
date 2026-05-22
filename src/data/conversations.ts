@@ -44,6 +44,7 @@ type ConversationRow = {
   last_message: string | null;
   last_message_at: string | null;
   group_name: string | null;
+  group_avatar_url: string | null;
   conversation_participants: ParticipantRow[];
 };
 
@@ -88,7 +89,10 @@ function mapToSummary(
     .filter((p) => p.user_id !== userId)
     .map((p) => p.profiles);
 
-  const { title, avatarUrl, recipientId } = getDisplayFields(row.type, others, row.group_name);
+  const { title, avatarUrl: directAvatarUrl, recipientId } = getDisplayFields(row.type, others, row.group_name);
+
+  // For groups, prefer the uploaded group avatar over the generated title initials.
+  const avatarUrl = row.group_avatar_url ?? directAvatarUrl;
 
   const me = row.conversation_participants.find((p) => p.user_id === userId);
 
@@ -122,7 +126,7 @@ export async function getMyConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      `id, type, created_at, last_message, last_message_at, group_name,
+      `id, type, created_at, last_message, last_message_at, group_name, group_avatar_url,
        conversation_participants (
          user_id, unread_count, role,
          profiles ( id, display_name, avatar_url )
@@ -298,4 +302,38 @@ export async function deleteGroup(conversationId: string): Promise<void> {
     conv_id: conversationId,
   });
   if (error) throw error;
+}
+
+/**
+ * Uploads a new group avatar and saves the URL to the conversation row.
+ * Always writes to groups/{conversationId}/avatar so re-uploads replace
+ * the old file. Caller must be a group admin (enforced by both the
+ * storage policy and the update_group_avatar RPC).
+ */
+export async function uploadGroupAvatar(
+  conversationId: string,
+  file: File,
+): Promise<string> {
+  const path = `groups/${conversationId}/avatar`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) throw uploadError;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(path);
+
+  const url = `${publicUrl}?t=${Date.now()}`;
+
+  const { error: rpcError } = await supabase.rpc("update_group_avatar", {
+    conv_id: conversationId,
+    avatar_url: url,
+  });
+
+  if (rpcError) throw rpcError;
+
+  return url;
 }
