@@ -41,7 +41,13 @@ export function AuthForm() {
   };
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-background px-4">
+    <div
+      className="flex min-h-full items-center justify-center bg-background px-4"
+      style={{
+        backgroundImage:
+          "radial-gradient(ellipse 70% 50% at 50% 0%, oklch(0.55 0.22 3 / 0.1) 0%, transparent 65%)",
+      }}
+    >
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}
@@ -60,20 +66,11 @@ export function AuthForm() {
         <div className="bg-card border border-border/60 rounded-2xl px-8 py-10 shadow-sm space-y-7">
           {/* Logo */}
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="2.5" fill="white" />
-                <circle
-                  cx="7"
-                  cy="7"
-                  r="5"
-                  stroke="white"
-                  strokeWidth="1.2"
-                  fill="none"
-                  opacity="0.6"
-                />
-              </svg>
-            </div>
+            <img
+              src="/raspberry-ripple.svg"
+              alt="Ripple"
+              className="w-12 h-12 rounded-2xl object-cover"
+            />
             <div className="text-center">
               <h1 className="text-xl font-semibold text-foreground tracking-tight">
                 {mode === "signin" ? "Welcome back" : "Create account"}

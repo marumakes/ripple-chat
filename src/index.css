@@ -72,35 +72,35 @@
    DARK MODE
    ============================================================ */
 .dark {
-  --background: oklch(0.16 0.015 260);
-  --foreground: oklch(0.92 0.01 260);
+  --background: oklch(0.15 0.015 255);
+  --foreground: oklch(0.93 0.005 255);
 
-  --card: oklch(0.21 0.015 260);
-  --card-foreground: oklch(0.92 0.01 260);
+  --card: oklch(0.20 0.015 255);
+  --card-foreground: oklch(0.93 0.005 255);
 
-  --popover: oklch(0.21 0.015 260);
-  --popover-foreground: oklch(0.92 0.01 260);
+  --popover: oklch(0.20 0.015 255);
+  --popover-foreground: oklch(0.93 0.005 255);
 
   /* Raspberry — slightly brighter in dark */
   --primary: oklch(0.62 0.22 3);
   --primary-foreground: oklch(0.99 0.005 3);
 
-  --secondary: oklch(0.28 0.015 260);
-  --secondary-foreground: oklch(0.92 0.01 260);
+  --secondary: oklch(0.26 0.015 255);
+  --secondary-foreground: oklch(0.93 0.005 255);
 
-  --muted: oklch(0.28 0.015 260);
-  --muted-foreground: oklch(0.58 0.015 260);
+  --muted: oklch(0.26 0.015 255);
+  --muted-foreground: oklch(0.60 0.010 255);
 
-  --accent: oklch(0.28 0.015 260);
-  --accent-foreground: oklch(0.92 0.01 260);
+  --accent: oklch(0.26 0.015 255);
+  --accent-foreground: oklch(0.93 0.005 255);
 
   --destructive: oklch(0.62 0.22 25);
 
-  --border: oklch(0.3 0.015 260);
-  --input: oklch(0.3 0.015 260);
+  --border: oklch(0.30 0.015 255);
+  --input: oklch(0.30 0.015 255);
   --ring: oklch(0.62 0.22 3);
 
-  --sidebar: oklch(0.19 0.015 260);
+  --sidebar: oklch(0.18 0.015 255);
 }
 
 /* ============================================================

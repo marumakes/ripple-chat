@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ConversationSummary } from "@/data/conversations";
 import type { Message } from "@/data/messages";
@@ -107,14 +106,12 @@ export function MessagingLayout({
             </div>
           </>
         ) : (
-          <div className="flex flex-col flex-1 items-center justify-center px-8 gap-4">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <MessageCircle
-                size={32}
-                strokeWidth={1.5}
-                className="text-muted-foreground"
-              />
-            </div>
+          <div className="flex flex-col flex-1 items-center justify-center px-8 gap-5">
+            <img
+              src="/raspberry-ripple.svg"
+              alt="Ripple"
+              className="w-16 h-16 rounded-2xl object-cover opacity-90"
+            />
             <div className="text-center">
               <h2 className="text-lg font-semibold text-foreground mb-1.5">
                 Your messages
@@ -123,9 +120,7 @@ export function MessagingLayout({
                 Select a conversation or start a new one.
               </p>
             </div>
-            <Button onClick={() => setShowModal(true)}>
-              New message
-            </Button>
+            <Button onClick={() => setShowModal(true)}>New message</Button>
           </div>
         )}
       </main>

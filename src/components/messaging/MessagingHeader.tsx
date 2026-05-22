@@ -30,18 +30,19 @@ export function MessagingHeader({
   const initials = title
     .trim()
     .split(/\s+/)
+    .filter(Boolean)
     .map((w) => w[0].toUpperCase())
     .join("")
-    .slice(0, 2);
+    .slice(0, 2) || "?";
 
   return (
     <div
-      className={`flex items-center gap-4 py-4 pr-8 border-b border-border bg-background shrink-0 transition-[padding-left] duration-300 ${
+      className={`h-[68px] flex items-center gap-4 pr-8 border-b border-border bg-background shrink-0 transition-[padding-left] duration-300 ${
         sidebarOpen ? "pl-8" : "pl-20"
       }`}
     >
       <Avatar className="size-10 shrink-0">
-        {avatarUrl && <AvatarImage src={avatarUrl} alt={title} />}
+        <AvatarImage src={avatarUrl ?? undefined} alt={title} />
         <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
           {initials}
         </AvatarFallback>

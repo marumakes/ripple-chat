@@ -60,22 +60,13 @@ export function MessagingSidebar({
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
+        <div className="h-[68px] flex items-center justify-between px-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="2.5" fill="white" />
-                <circle
-                  cx="7"
-                  cy="7"
-                  r="5"
-                  stroke="white"
-                  strokeWidth="1.2"
-                  fill="none"
-                  opacity="0.6"
-                />
-              </svg>
-            </div>
+            <img
+              src="/raspberry-ripple.svg"
+              alt="Ripple"
+              className="w-9 h-9 rounded-xl object-cover shrink-0"
+            />
             <span className="text-base font-semibold tracking-tight text-foreground">
               Ripple
             </span>
@@ -146,7 +137,7 @@ export function MessagingSidebar({
         </div>
 
         {/* Footer — clickable user info opens profile editor */}
-        <div className="px-4 py-3 border-t border-border shrink-0 flex items-center justify-between gap-3">
+        <div className="h-[72px] px-4 border-t border-border shrink-0 flex items-center justify-between gap-3">
           <button
             onClick={() => setShowProfile(true)}
             className="flex items-center gap-3 min-w-0 text-left rounded-lg px-1 py-1 hover:bg-muted transition-colors"

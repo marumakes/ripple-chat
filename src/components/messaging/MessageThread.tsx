@@ -73,22 +73,12 @@ function Bubble({
   return (
     <div
       className={clsx(
-        "group relative inline-flex items-end gap-2 max-w-full",
+        "group relative inline-flex items-center gap-2 max-w-full",
         isOwn ? "flex-row-reverse" : "flex-row",
       )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {isOwn && hovered && (
-        <button
-          onClick={onDelete}
-          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-accent transition-colors"
-          aria-label="Delete message"
-        >
-          <Trash2 size={13} className="text-muted-foreground" />
-        </button>
-      )}
-
       <div>
         <div
           className={clsx(
@@ -109,6 +99,16 @@ function Bubble({
           {formatTime(message.created_at)}
         </p>
       </div>
+
+      {isOwn && hovered && (
+        <button
+          onClick={onDelete}
+          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-accent transition-colors"
+          aria-label="Delete message"
+        >
+          <Trash2 size={13} className="text-muted-foreground" />
+        </button>
+      )}
     </div>
   );
 }
@@ -300,12 +300,10 @@ export function MessageThread({
             {!isOwn &&
               (showAvatar ? (
                 <Avatar className="size-8 shrink-0">
-                  {msg.sender.avatar_url && (
-                    <AvatarImage
-                      src={msg.sender.avatar_url}
-                      alt={msg.sender.display_name}
-                    />
-                  )}
+                  <AvatarImage
+                    src={msg.sender.avatar_url ?? undefined}
+                    alt={msg.sender.display_name}
+                  />
                   <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
                     {initials}
                   </AvatarFallback>
@@ -420,7 +418,7 @@ export function MessageThread({
       )}
 
       {/* Composer */}
-      <div className="px-6 pb-6 pt-3 border-t border-border shrink-0">
+      <div className="px-6 py-3 border-t border-border shrink-0">
         {isRecipientDeleted ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             This account no longer exists.
@@ -448,7 +446,7 @@ export function MessageThread({
                 {sendError}
               </p>
             )}
-            <div className="flex items-end gap-3 rounded-2xl px-4 py-3 bg-muted/60 border border-border/50">
+            <div className="flex items-end gap-3 rounded-2xl px-4 py-2 bg-muted/60 border border-border/50">
               <textarea
                 ref={textareaRef}
                 value={input}
