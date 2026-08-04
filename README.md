@@ -65,7 +65,7 @@ Opening a conversation resets the unread count via an RPC call, which clears the
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/ripple-chat.git
+git clone https://github.com/marumakes/ripple-chat.git
 cd ripple-chat
 npm install
 ```
@@ -117,3 +117,9 @@ npm run dev
 - The UI is intentionally fairly minimal, designed to be integrated into a larger app where it will inherit that project's design system
 - Unblock state requires a page refresh for the unblocked user
 - Unread counts are seeded using a "last sent = last read" heuristic — accurate for demo purposes but not a true read-receipt system
+
+---
+
+## License
+
+[MIT](./LICENSE)
